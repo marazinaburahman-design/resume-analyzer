@@ -1,4 +1,4 @@
-import { askGroq } from './askGroq.js';
+import { askGroq, GROQ_MODEL } from './askGroq.js';
 
 const PROVIDERS = Object.freeze({
   groq: askGroq
@@ -6,6 +6,12 @@ const PROVIDERS = Object.freeze({
 
 export function configuredAIProvider() {
   return (process.env.AI_PROVIDER || 'groq').trim().toLowerCase();
+}
+
+export function configuredAIModel() {
+  const provider = configuredAIProvider();
+  if (provider === 'groq') return GROQ_MODEL;
+  return 'unknown';
 }
 
 export function checkAIProviderConfig() {
@@ -26,7 +32,6 @@ export async function analyzeWithAI(text, targetRole) {
   return {
     ...result,
     provider,
-    model: result.model,
-    promptVersion: result.promptVersion
+    model: result.model || configuredAIModel()
   };
 }

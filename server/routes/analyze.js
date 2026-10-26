@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { ROLES } from '../lib/roles.js';
 import { readResume } from '../lib/readResume.js';
-import { analyzeWithAI, configuredAIProvider } from '../lib/aiProvider.js';
+import { analyzeWithAI, configuredAIProvider, configuredAIModel } from '../lib/aiProvider.js';
 import { fallbackAnalysis } from '../lib/fallbackAnalysis.js';
 import { verdictFor } from '../lib/verdict.js';
 import { costInr } from '../lib/cost.js';
@@ -45,7 +45,7 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
 
     const cap = Number(process.env.DAILY_CAP_INR);
     const provider = configuredAIProvider();
-    const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+    let model = configuredAIModel();
     const reservationAmount = maximumRequestReservationInr(model);
     reservation = await reserveDailyBudget(cap, reservationAmount);
     if (!reservation) {
@@ -61,6 +61,7 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
         analysis = response.analysis;
         usage.input_tokens += response.usage?.input_tokens || 0;
         usage.output_tokens += response.usage?.output_tokens || 0;
+        model = response.model || model;
         promptVersion = response.promptVersion || promptVersion;
         break;
       } catch (error) {
@@ -93,7 +94,7 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
       costInr: cost
     });
     const total = await spentTodayInr();
-    console.log(`[AI] ${provider} analysed ${text.length} chars for ${targetRole} in ${Date.now() - started} ms (prompt ${promptVersion})`);
+    console.log(`[AI] ${provider} analysed ${text.length} chars for ${targetRole} in ${Date.now() - started} ms (model ${model}; prompt ${promptVersion})`);
     console.log(`[Cost] ₹${cost.toFixed(4)} for this request, ₹${total.toFixed(4)} today`);
     return res.json({
       targetRole, score: analysis.score, verdict: analysis.verdict,

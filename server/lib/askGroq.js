@@ -4,7 +4,7 @@ import { buildResumeMessages, PROMPT_VERSION } from './prompts/resumeAnalysisV1.
 const RETIRED_MODEL = 'llama-3.3-70b-versatile';
 const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 const configuredModel = process.env.GROQ_MODEL;
-const MODEL = !configuredModel || configuredModel === RETIRED_MODEL ? DEFAULT_MODEL : configuredModel;
+export const GROQ_MODEL = !configuredModel || configuredModel === RETIRED_MODEL ? DEFAULT_MODEL : configuredModel;
 
 export async function askGroq(text, targetRole) {
   if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not configured');
@@ -20,7 +20,7 @@ export async function askGroq(text, targetRole) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: GROQ_MODEL,
         temperature: 0.2,
         max_tokens: 1500,
         response_format: { type: 'json_object' },
@@ -64,7 +64,7 @@ export async function askGroq(text, targetRole) {
         input_tokens: usage.prompt_tokens || 0,
         output_tokens: usage.completion_tokens || 0
       },
-      model: MODEL,
+      model: GROQ_MODEL,
       promptVersion: PROMPT_VERSION
     };
   } finally {

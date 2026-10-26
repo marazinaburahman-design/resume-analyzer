@@ -6,7 +6,6 @@ const dailyBudgetSchema = new mongoose.Schema({
   expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
-dailyBudgetSchema.index({ dayKey: 1 }, { unique: true });
 dailyBudgetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.model('DailyBudget', dailyBudgetSchema);

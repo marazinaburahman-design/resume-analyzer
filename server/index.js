@@ -10,8 +10,27 @@ import { checkCostConfig } from './lib/cost.js';
 
 const app = express();
 app.set('trust proxy', 1);
-const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5180').split(',').map(value => value.trim()).filter(Boolean);
-app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error('Origin not allowed by CORS')); } }));
+
+// Keep production and local development origins available even if the Vercel
+// CLIENT_ORIGIN setting is missing or contains only one of the deployed URLs.
+const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
+ .split(',')
+ .map(value => value.trim())
+ .filter(Boolean);
+const allowedOrigins = new Set([
+ ...configuredOrigins,
+ 'https://resume-analyzer-web-two.vercel.app',
+ 'https://resume-analyzer-web-abdur-rahman7.vercel.app',
+ 'http://localhost:5180',
+ 'http://localhost:5174'
+]);
+app.use(cors({
+ origin(origin, callback) {
+  if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+  console.warn('[CORS] Blocked origin:', origin);
+  return callback(new Error('Origin not allowed by CORS'));
+ }
+}));
 app.use(express.json({ limit: '32kb' }));
 
 // Liveness: confirms the Vercel function can start without depending on Atlas.

@@ -4,7 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { validate as isUuid } from 'uuid';
 import { ROLES } from '../lib/roles.js';
 import { readResume } from '../lib/readResume.js';
-import { askClaude } from '../lib/askClaude.js';
+import { askGroq } from '../lib/askGroq.js';
 import { fallbackAnalysis } from '../lib/fallbackAnalysis.js';
 import { verdictFor } from '../lib/verdict.js';
 import { costInr } from '../lib/cost.js';
@@ -27,13 +27,13 @@ router.post('/analyze', analyzeLimiter, upload.single('resume'), async (req, res
   if (spent >= cap) { console.warn('[Cost] daily cap reached'); return res.status(503).json({ error: "We've hit today's AI budget. Please try again tomorrow." }); }
   let analysis, usage = { input_tokens: 0, output_tokens: 0 }, fallback = false;
   for (let attempt = 1; attempt <= 2; attempt++) {
-   try { const response = await askClaude(text, targetRole); analysis = response.analysis; usage.input_tokens += response.usage?.input_tokens || 0; usage.output_tokens += response.usage?.output_tokens || 0; break; }
-   catch (error) { usage.input_tokens += error.usage?.input_tokens || 0; usage.output_tokens += error.usage?.output_tokens || 0; console.error(`[AI] attempt ${attempt} failed: ${error.message}`); if (attempt === 2) { analysis = fallbackAnalysis(text, targetRole); fallback = true; } }
+   try { const response = await askGroq(text, targetRole); analysis = response.analysis; usage.input_tokens += response.usage?.input_tokens || 0; usage.output_tokens += response.usage?.output_tokens || 0; break; }
+   catch (error) { usage.input_tokens += error.usage?.input_tokens || 0; usage.output_tokens += error.usage?.output_tokens || 0; console.error(`[AI] Groq attempt ${attempt} failed: ${error.message}`); if (attempt === 2) { analysis = fallbackAnalysis(text, targetRole); fallback = true; } }
   }
   if (!fallback) analysis.verdict = verdictFor(analysis.score);
-  const model = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001'; const cost = costInr({ inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }, model);
+  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'; const cost = costInr({ inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }, model);
   const saved = await Result.create({ userId, targetRole, score: analysis.score, verdict: analysis.verdict, skillsFound: analysis.skillsFound, skillsMissing: analysis.skillsMissing, topFixes: analysis.topFixes.slice(0,3), fallback, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, costInr: cost });
-  const total = await spentTodayInr(); console.log(`[AI] analysed ${text.length} chars for ${targetRole} in ${Date.now()-started} ms`); console.log(`[Cost] ₹${cost.toFixed(4)} for this request, ₹${total.toFixed(4)} today`);
+  const total = await spentTodayInr(); console.log(`[AI] Groq analysed ${text.length} chars for ${targetRole} in ${Date.now()-started} ms`); console.log(`[Cost] ₹${cost.toFixed(4)} for this request, ₹${total.toFixed(4)} today`);
   return res.json({ targetRole, score: analysis.score, verdict: analysis.verdict, skillsFound: analysis.skillsFound, skillsMissing: analysis.skillsMissing, topFixes: analysis.topFixes.slice(0,3), fallback, costInr: cost, id: saved._id });
  } catch (error) { next(error); }
 });

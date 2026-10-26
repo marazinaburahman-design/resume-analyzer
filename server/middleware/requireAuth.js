@@ -2,6 +2,8 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
 const COOKIE_NAME = 'resume_token';
+const TOKEN_ISSUER = 'resume-analyzer';
+const TOKEN_AUDIENCE = 'resume-analyzer-client';
 
 export function requireAuth(req, res, next) {
   const token = req.cookies?.[COOKIE_NAME];
@@ -13,7 +15,11 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, secret);
+    const payload = jwt.verify(token, secret, {
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
+      algorithms: ['HS256']
+    });
     if (typeof payload.sub !== 'string' || !mongoose.isValidObjectId(payload.sub)) {
       return res.status(401).json({ error: 'Your session is invalid. Please sign in again.' });
     }

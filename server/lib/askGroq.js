@@ -2,7 +2,11 @@ import { AnalysisSchema } from './analysisSchema.js';
 import { rules } from './analyzerRules.js';
 import { ROLES } from './roles.js';
 
-const MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const RETIRED_MODEL = 'llama-3.3-70b-versatile';
+const DEFAULT_MODEL = 'openai/gpt-oss-120b';
+const configuredModel = process.env.GROQ_MODEL;
+const MODEL = !configuredModel || configuredModel === RETIRED_MODEL ? DEFAULT_MODEL : configuredModel;
+
 export async function askGroq(text, targetRole) {
   if (!process.env.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not configured');
   const controller = new AbortController();

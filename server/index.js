@@ -7,12 +7,14 @@ import analyzeRouter from './routes/analyze.js';
 import resultsRouter from './routes/results.js';
 import authRouter from './routes/auth.js';
 import { errors } from './middleware/errors.js';
+import { securityHeaders } from './middleware/securityHeaders.js';
 import { connectDb } from './db.js';
 import { checkCostConfig } from './lib/cost.js';
 import { checkAIProviderConfig } from './lib/aiProvider.js';
 
 const app = express();
 app.set('trust proxy', 1);
+app.use(securityHeaders);
 
 const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')

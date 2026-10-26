@@ -3,7 +3,9 @@ import { PDFParse } from 'pdf-parse';
 
 function cleanText(value) {
   return String(value || '')
+    .normalize('NFKC')
     .replace(/^\s*--\s*\d+\s+of\s+\d+\s*--\s*$/gm, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
     .replace(/[\t\f\v]+/g, ' ')
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')

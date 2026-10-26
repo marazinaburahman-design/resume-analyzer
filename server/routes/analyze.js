@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { ROLES } from '../lib/roles.js';
+import { hasPdfSignature } from '../lib/validatePdf.js';
 import { readResume } from '../lib/readResume.js';
 import { analyzeWithAI, configuredAIProvider, configuredAIModel } from '../lib/aiProvider.js';
 import { fallbackAnalysis } from '../lib/fallbackAnalysis.js';
@@ -14,7 +15,10 @@ import { requireTrustedOrigin } from '../middleware/requireTrustedOrigin.js';
 import { mongoRateLimit } from '../middleware/mongoRateLimit.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, fields: 2, fieldSize: 8 * 1024, parts: 3 }
+});
 const analyzeLimiter = mongoRateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
@@ -33,6 +37,9 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
 
     if (!req.file || req.file.mimetype !== 'application/pdf' || !req.file.originalname.toLowerCase().endsWith('.pdf')) {
       return res.status(400).json({ error: 'Upload your resume as a PDF.' });
+    }
+    if (!hasPdfSignature(req.file.buffer)) {
+      return res.status(400).json({ error: 'The selected file does not appear to be a valid PDF.' });
     }
     if (!Object.hasOwn(ROLES, targetRole)) return res.status(400).json({ error: 'Pick a role from the list.' });
 

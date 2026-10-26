@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const rateLimitCounterSchema = new mongoose.Schema({
   _id: { type: String },
-  count: { type: Number, required: true, default: 0 },
+  count: { type: Number, required: true },
   expiresAt: { type: Date, required: true }
 }, { versionKey: false });
 

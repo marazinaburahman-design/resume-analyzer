@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { BrainCircuit, ShieldCheck, ArrowUpRight, LockKeyhole } from 'lucide-react';
+import { BrainCircuit, ShieldCheck, ArrowUpRight, LockKeyhole, ArrowLeft } from 'lucide-react';
 import { loginAccount, registerAccount } from '../lib/api.js';
 
-export default function AuthPanel({ onAuthenticated }) {
+export default function AuthPanel({ onAuthenticated, onBack }) {
   const [mode, setMode] = useState('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,10 +41,11 @@ export default function AuthPanel({ onAuthenticated }) {
         <span className="privacy-note"><ShieldCheck size={15} /> Private workspace</span>
       </header>
       <section className="auth-card" id="top">
+        {onBack && <button type="button" className="signout-button" onClick={onBack}><ArrowLeft size={14}/> Back to Resume Lab</button>}
         <div className="auth-mark"><LockKeyhole size={20} /></div>
         <p className="section-kicker">{mode === 'register' ? 'Create your workspace' : 'Welcome back'}</p>
         <h1>{mode === 'register' ? 'Your next step starts here.' : 'Sign in to your workspace.'}</h1>
-        <p className="auth-description">Your reviews are tied to your account, so only you can access your saved results.</p>
+        <p className="auth-description">Sign in or create an account to analyse your resume and keep your review history private.</p>
         <div className="auth-tabs" role="tablist" aria-label="Account action">
           <button type="button" role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')}>Sign in</button>
           <button type="button" role="tab" aria-selected={mode === 'register'} className={mode === 'register' ? 'active' : ''} onClick={() => switchMode('register')}>Create account</button>

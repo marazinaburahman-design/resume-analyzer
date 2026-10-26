@@ -1,6 +1,26 @@
-import { Clock3, FileCheck2, ArrowUpRight } from 'lucide-react';
-export default function HistoryList({items,loading,onSelect}) {
- return <section className="history-panel"><div className="history-heading"><div><p className="section-kicker">Saved results</p><h2>Recent reviews</h2></div><Clock3 size={17}/></div>
- {loading?<p className="history-empty">Loading your reviews…</p>:!items.length?<div className="history-empty-state"><FileCheck2 size={20}/><p>No reviews yet</p><span>Your completed resume reviews will appear here.</span></div>:<div className="history-rows">{items.map(item=><button onClick={()=>onSelect(item)} key={item._id} className="history-row"><span className="history-file-icon"><FileCheck2 size={16}/></span><span className="history-item-copy"><strong>{item.targetRole}</strong><small>{new Date(item.createdAt).toLocaleDateString('en-GB')}</small></span><span className="history-score">{item.fallback||item.score==null?'Match':`${item.score}/100`}</span><ArrowUpRight className="history-open" size={14}/></button>)}</div>}
- </section>
+import { Clock3, FileCheck2, ArrowUpRight, Trash2 } from 'lucide-react';
+
+export default function HistoryList({ items, loading, onSelect, onDelete }) {
+  return <section className="history-panel">
+    <div className="history-heading">
+      <div><p className="section-kicker">Saved results</p><h2>Recent reviews</h2></div>
+      <Clock3 size={17}/>
+    </div>
+    {loading
+      ? <p className="history-empty">Loading your reviews…</p>
+      : !items.length
+        ? <div className="history-empty-state"><FileCheck2 size={20}/><p>No reviews yet</p><span>Your completed resume reviews will appear here.</span></div>
+        : <div className="history-rows">{items.map(item =>
+          <div className="history-row" key={item._id}>
+            <button type="button" onClick={() => onSelect(item)} className="history-row-main">
+              <span className="history-file-icon"><FileCheck2 size={16}/></span>
+              <span className="history-item-copy"><strong>{item.targetRole}</strong><small>{new Date(item.createdAt).toLocaleDateString('en-GB')}</small></span>
+              <span className="history-score">{item.fallback || item.score == null ? 'Match' : `${item.score}/100`}</span>
+              <ArrowUpRight className="history-open" size={14}/>
+            </button>
+            <button type="button" className="history-delete" title="Delete this review" aria-label={`Delete review for ${item.targetRole}`} onClick={() => onDelete(item._id)}><Trash2 size={14}/></button>
+          </div>
+        )}</div>
+    }
+  </section>;
 }

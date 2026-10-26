@@ -9,6 +9,7 @@ import authRouter from './routes/auth.js';
 import { errors } from './middleware/errors.js';
 import { connectDb } from './db.js';
 import { checkCostConfig } from './lib/cost.js';
+import { checkAIProviderConfig } from './lib/aiProvider.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -36,7 +37,6 @@ app.use(cors({
 app.use(express.json({ limit: '32kb' }));
 app.use(cookieParser());
 
-// Liveness: confirms the Vercel function can start without depending on Atlas.
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
@@ -45,7 +45,6 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// Readiness: explicitly tests whether Atlas is reachable.
 app.get('/api/ready', async (_req, res) => {
   try {
     await connectDb();
@@ -71,6 +70,7 @@ app.use('/api', resultsRouter);
 app.use(errors);
 
 checkCostConfig();
+checkAIProviderConfig();
 if (!process.env.VERCEL) {
   const port = Number(process.env.PORT) || 4000;
   app.listen(port, () => console.log(`[Server] listening on http://localhost:${port}`));

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { ROLES } from '../lib/roles.js';
 import { readResume } from '../lib/readResume.js';
-import { askGroq } from '../lib/askGroq.js';
+import { analyzeWithAI, configuredAIProvider } from '../lib/aiProvider.js';
 import { fallbackAnalysis } from '../lib/fallbackAnalysis.js';
 import { verdictFor } from '../lib/verdict.js';
 import { costInr } from '../lib/cost.js';
@@ -44,6 +44,7 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
     if (text.length > 20000) return res.status(413).json({ error: 'This resume is too long. Keep it to 3 pages.' });
 
     const cap = Number(process.env.DAILY_CAP_INR);
+    const provider = configuredAIProvider();
     const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
     const reservationAmount = maximumRequestReservationInr(model);
     reservation = await reserveDailyBudget(cap, reservationAmount);
@@ -53,26 +54,25 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
     }
 
     let analysis, usage = { input_tokens: 0, output_tokens: 0 }, fallback = false;
+    let promptVersion = 'resume-analysis-v1';
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const response = await askGroq(text, targetRole);
+        const response = await analyzeWithAI(text, targetRole);
         analysis = response.analysis;
         usage.input_tokens += response.usage?.input_tokens || 0;
         usage.output_tokens += response.usage?.output_tokens || 0;
+        promptVersion = response.promptVersion || promptVersion;
         break;
       } catch (error) {
         usage.input_tokens += error.usage?.input_tokens || 0;
         usage.output_tokens += error.usage?.output_tokens || 0;
-        console.error(`[AI] Groq attempt ${attempt} failed: ${error.message}`);
+        console.error(`[AI] ${provider} attempt ${attempt} failed: ${error.message}`);
         if (attempt === 2) { analysis = fallbackAnalysis(text, targetRole); fallback = true; }
       }
     }
 
     if (!fallback) analysis.verdict = verdictFor(analysis.score);
     const cost = costInr({ inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }, model);
-
-    // Settle the reservation before persisting the result. If persistence fails,
-    // retaining the actual spend in the budget ledger is the safe failure mode.
     await settleDailyBudget(reservation, cost);
     reservationSettled = true;
 
@@ -85,12 +85,15 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
       skillsMissing: analysis.skillsMissing,
       topFixes: analysis.topFixes.slice(0, 3),
       fallback,
+      aiProvider: provider,
+      aiModel: model,
+      promptVersion,
       inputTokens: usage.input_tokens,
       outputTokens: usage.output_tokens,
       costInr: cost
     });
     const total = await spentTodayInr();
-    console.log(`[AI] Groq analysed ${text.length} chars for ${targetRole} in ${Date.now() - started} ms`);
+    console.log(`[AI] ${provider} analysed ${text.length} chars for ${targetRole} in ${Date.now() - started} ms (prompt ${promptVersion})`);
     console.log(`[Cost] ₹${cost.toFixed(4)} for this request, ₹${total.toFixed(4)} today`);
     return res.json({
       targetRole, score: analysis.score, verdict: analysis.verdict,

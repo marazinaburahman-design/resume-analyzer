@@ -2,6 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import Result from '../models/Result.js';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { requireTrustedOrigin } from '../middleware/requireTrustedOrigin.js';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get('/results', requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete('/results/:id', requireAuth, async (req, res, next) => {
+router.delete('/results/:id', requireTrustedOrigin, requireAuth, async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: 'Invalid result ID.' });

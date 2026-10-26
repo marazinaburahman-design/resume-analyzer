@@ -10,6 +10,7 @@ import { costInr } from '../lib/cost.js';
 import { spentTodayInr } from '../lib/spend.js';
 import Result from '../models/Result.js';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { requireTrustedOrigin } from '../middleware/requireTrustedOrigin.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024 } });
@@ -22,7 +23,7 @@ export const analyzeLimiter = rateLimit({
   message: { error: 'Five analyses per 10 minutes. Please try again soon.' }
 });
 
-router.post('/analyze', requireAuth, analyzeLimiter, upload.single('resume'), async (req, res, next) => {
+router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, upload.single('resume'), async (req, res, next) => {
   const started = Date.now();
   try {
     const { targetRole } = req.body || {};

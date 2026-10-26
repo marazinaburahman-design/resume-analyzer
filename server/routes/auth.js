@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import User from '../models/User.js';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { requireTrustedOrigin } from '../middleware/requireTrustedOrigin.js';
 
 const router = Router();
 const COOKIE_NAME = 'resume_token';
@@ -43,6 +44,7 @@ function cookieOptions() {
     httpOnly: true,
     secure: production,
     sameSite: production ? 'none' : 'lax',
+    partitioned: production,
     path: '/',
     maxAge: SESSION_MS
   };
@@ -61,7 +63,7 @@ function setSession(res, user) {
   res.cookie(COOKIE_NAME, token, cookieOptions());
 }
 
-router.post('/auth/register', authLimiter, async (req, res, next) => {
+router.post('/auth/register', requireTrustedOrigin, authLimiter, async (req, res, next) => {
   try {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -82,7 +84,7 @@ router.post('/auth/register', authLimiter, async (req, res, next) => {
   }
 });
 
-router.post('/auth/login', authLimiter, async (req, res, next) => {
+router.post('/auth/login', requireTrustedOrigin, authLimiter, async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Enter a valid email and password.' });
@@ -99,7 +101,7 @@ router.post('/auth/login', authLimiter, async (req, res, next) => {
   }
 });
 
-router.post('/auth/logout', (_req, res) => {
+router.post('/auth/logout', requireTrustedOrigin, (_req, res) => {
   res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: undefined });
   return res.json({ ok: true });
 });

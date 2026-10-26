@@ -16,6 +16,7 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(securityHeaders);
 
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 const configuredOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
   .map(value => value.trim())
@@ -24,8 +25,7 @@ const allowedOrigins = new Set([
   ...configuredOrigins,
   'https://resume-analyzer-web-two.vercel.app',
   'https://resume-analyzer-web-abdur-rahman7.vercel.app',
-  'http://localhost:5180',
-  'http://localhost:5174'
+  ...(isProduction ? [] : ['http://localhost:5180', 'http://localhost:5174'])
 ]);
 
 app.use(cors({

@@ -1,21 +1,21 @@
 import { Router } from 'express';
-import { rateLimit } from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import User from '../models/User.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireTrustedOrigin } from '../middleware/requireTrustedOrigin.js';
+import { mongoRateLimit } from '../middleware/mongoRateLimit.js';
 
 const router = Router();
 const COOKIE_NAME = 'resume_token';
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
-const authLimiter = rateLimit({
+const authLimiter = mongoRateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' }
+  keyPrefix: 'auth',
+  keyGenerator: req => req.ip || 'unknown-ip',
+  message: 'Too many sign-in attempts. Please wait 15 minutes and try again.'
 });
 
 const registerSchema = z.object({

@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { rateLimit } from 'express-rate-limit';
 import { ROLES } from '../lib/roles.js';
 import { readResume } from '../lib/readResume.js';
 import { askGroq } from '../lib/askGroq.js';
@@ -8,23 +7,26 @@ import { fallbackAnalysis } from '../lib/fallbackAnalysis.js';
 import { verdictFor } from '../lib/verdict.js';
 import { costInr } from '../lib/cost.js';
 import { spentTodayInr } from '../lib/spend.js';
+import { maximumRequestReservationInr, reserveDailyBudget, settleDailyBudget } from '../lib/budget.js';
 import Result from '../models/Result.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireTrustedOrigin } from '../middleware/requireTrustedOrigin.js';
+import { mongoRateLimit } from '../middleware/mongoRateLimit.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024 } });
-export const analyzeLimiter = rateLimit({
+const analyzeLimiter = mongoRateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
-  skipFailedRequests: true,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { error: 'Five analyses per 10 minutes. Please try again soon.' }
+  keyPrefix: 'analysis',
+  keyGenerator: req => req.user?.id,
+  message: 'Five analyses per 10 minutes. Please try again soon.'
 });
 
 router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, upload.single('resume'), async (req, res, next) => {
   const started = Date.now();
+  let reservation = null;
+  let reservationSettled = false;
   try {
     const { targetRole } = req.body || {};
     const userId = req.user.id;
@@ -42,9 +44,11 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
     if (text.length > 20000) return res.status(413).json({ error: 'This resume is too long. Keep it to 3 pages.' });
 
     const cap = Number(process.env.DAILY_CAP_INR);
-    const spent = await spentTodayInr();
-    if (spent >= cap) {
-      console.warn('[Cost] daily cap reached');
+    const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+    const reservationAmount = maximumRequestReservationInr(model);
+    reservation = await reserveDailyBudget(cap, reservationAmount);
+    if (!reservation) {
+      console.warn('[Cost] daily budget cap reached or reserved by concurrent requests');
       return res.status(503).json({ error: "We've hit today's AI budget. Please try again tomorrow." });
     }
 
@@ -65,8 +69,13 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
     }
 
     if (!fallback) analysis.verdict = verdictFor(analysis.score);
-    const model = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
     const cost = costInr({ inputTokens: usage.input_tokens, outputTokens: usage.output_tokens }, model);
+
+    // Settle the reservation before persisting the result. If persistence fails,
+    // retaining the actual spend in the budget ledger is the safe failure mode.
+    await settleDailyBudget(reservation, cost);
+    reservationSettled = true;
+
     const saved = await Result.create({
       userId,
       targetRole,
@@ -90,6 +99,11 @@ router.post('/analyze', requireTrustedOrigin, requireAuth, analyzeLimiter, uploa
     });
   } catch (error) {
     return next(error);
+  } finally {
+    if (reservation && !reservationSettled) {
+      try { await settleDailyBudget(reservation, 0); }
+      catch (error) { console.error('[Cost] Failed to release budget reservation:', error?.message || 'unknown error'); }
+    }
   }
 });
 

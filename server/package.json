@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.16.0"
   },
   "scripts": {
     "dev": "node --watch --env-file=.env index.js",
@@ -18,8 +18,7 @@
     "express-rate-limit": "^7.5.0",
     "mongoose": "^8.9.5",
     "multer": "^2.0.2",
-    "pdf-parse": "1.1.1",
-    "pdf2json": "^3.1.4",
+    "pdf-parse": "2.4.5",
     "uuid": "^11.0.5",
     "zod": "^3.24.1"
   }

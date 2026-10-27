@@ -9,18 +9,25 @@ export default function AuthPanel({ onAuthenticated, onBack }) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   async function submit(event) {
     event.preventDefault();
     setError('');
+    setSuccess('');
     setBusy(true);
     try {
-      const response = mode === 'register'
-        ? await registerAccount({ name, email, password })
-        : await loginAccount({ email, password });
-      onAuthenticated(response.user);
+      if (mode === 'register') {
+        await registerAccount({ name, email, password });
+        setMode('login');
+        setPassword('');
+        setSuccess('Account created successfully. Please sign in to continue.');
+      } else {
+        const response = await loginAccount({ email, password });
+        onAuthenticated(response.user);
+      }
     } catch (err) {
-      setError(err.message || 'Could not sign you in. Please try again.');
+      setError(err.message || 'Could not complete your request. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -29,6 +36,7 @@ export default function AuthPanel({ onAuthenticated, onBack }) {
   function switchMode(next) {
     setMode(next);
     setError('');
+    setSuccess('');
   }
 
   return (
@@ -55,6 +63,7 @@ export default function AuthPanel({ onAuthenticated, onBack }) {
           <label className="auth-field"><span>Email address</span><input type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} required placeholder="you@example.com" /></label>
           <label className="auth-field"><span>Password</span><input type="password" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} value={password} onChange={event => setPassword(event.target.value)} minLength={mode === 'register' ? 8 : 1} maxLength={72} required placeholder={mode === 'register' ? 'At least 8 characters' : 'Your password'} /></label>
           {error && <p className="auth-error" role="alert">{error}</p>}
+          {success && <p className="auth-success" role="status">{success}</p>}
           <button className="analyze-button auth-submit" type="submit" disabled={busy}>
             <span>{busy ? 'Please wait…' : mode === 'register' ? 'Create my account' : 'Sign in securely'}</span>
             <ArrowUpRight size={17} />

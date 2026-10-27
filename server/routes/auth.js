@@ -76,8 +76,7 @@ router.post('/auth/register', requireTrustedOrigin, authLimiter, async (req, res
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
     const user = await User.create({ name, email, passwordHash });
-    setSession(res, user);
-    return res.status(201).json({ user: publicUser(user) });
+    return res.status(201).json({ message: 'Account created. Please sign in.' });
   } catch (error) {
     if (error?.code === 11000) return res.status(409).json({ error: 'An account with this email already exists. Sign in instead.' });
     return next(error);
